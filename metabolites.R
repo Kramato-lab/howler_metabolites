@@ -384,6 +384,9 @@ write.csv(rhovalue_dry, "genera_network_dry_rhovalues.csv")
 #Metab micro mantel tests ----
 metab_monthly = read.csv("metabolites_name_match_50plus_monthly_r_with16S_mantel.csv")
 asvs_monthly = read.csv("16S_ASV_table_ra_monthly_wmetab_11plus_mantel.csv", header = T)
+genus_monthly = read.csv("genera_table_ra_monthly_wmetab_11plus_mantel.csv", header = T)
+family_monthly = read.csv("family_table_ra_monthly_wmetab_11plus_mantel.csv", header = T)
+phyla_monthly = read.csv("phyla_table_ra_monthly_wmetab_11plus_mantel.csv", header = T)
 
 metab_monthly_relab = decostand(metab_monthly[,4:169], method="total", MARGIN=1)
 metab_monthly_relab_meta = bind_cols(metab_monthly[,1:3], metab_monthly_relab)
@@ -392,14 +395,45 @@ bray_metab_monthly = vegdist(metab_monthly_relab)
 bray_asvs_monthly = vegdist(asvs_monthly[,7:115])
 mantel(bray_metab_monthly, bray_asvs_monthly, 
        method = "spearman", permutations = 4999)
+bray_genus_monthly = vegdist(genus_monthly[,7:102])
+mantel(bray_metab_monthly, bray_genus_monthly, 
+       method = "spearman", permutations = 4999)
+bray_family_monthly = vegdist(family_monthly[,7:60])
+mantel(bray_metab_monthly, bray_family_monthly, 
+       method = "spearman", permutations = 4999)
+bray_phyla_monthly = vegdist(phyla_monthly[,7:15])
+mantel(bray_metab_monthly, bray_phyla_monthly, 
+       method = "spearman", permutations = 4999)
+
+##Scatterplots ----
+
+library(graph4lg)
+library(cowplot)
+
+asvs_scatter = scatter_dist(bray_asvs_monthly, bray_metab_monthly, method = "lm") + 
+  labs(y = "ASVs", x = "Metabolites")
+genus_scatter = scatter_dist(bray_genus_monthly, bray_metab_monthly, method = "lm") + 
+  labs(y = "Genera", x = "Metabolites")
+family_scatter = scatter_dist(bray_family_monthly, bray_metab_monthly, method = "lm") + 
+  labs(y = "Families", x = "Metabolites")
+phyla_scatter = scatter_dist(bray_phyla_monthly, bray_metab_monthly, method = "lm") + 
+  labs(y = "Phyla", x = "Metabolites")
+
+tiff("microbe_metab_distance_scatterplots.tif", width = 8, height = 6, units = "in", 
+     res = 300)
+plot_grid(asvs_scatter, genus_scatter, family_scatter, phyla_scatter,
+          nrow = 2, ncol = 2, align = "hv", axis = "lb")
+dev.off()
 
 #Metab micro network comparisons -----
 
-##Monthly ----
+##Monthly combined ----
 
 metab_monthly = read.csv("metabolites_name_match_50plus_monthly_r_with16S.csv")
 genera_monthly = read.csv("genera_table_relab_11plus_monthly_wmetab.csv", header = T)
 asvs_monthly = read.csv("16S_ASV_table_ra_monthly_wmetab_11plus.csv", header = T)
+family_monthly = read.csv("family_table_relab_11plus_monthly_wmetab.csv", header = T)
+phyla_monthly = read.csv("phyla_table_relab_11plus_monthly_wmetab.csv", header = T)
 
 metab_monthly_relab = decostand(metab_monthly[,4:169], method="total", MARGIN=1)
 metab_monthly_relab_meta = bind_cols(metab_monthly[,1:3], metab_monthly_relab)
@@ -411,6 +445,14 @@ output_monthly_all_interact = ccrepe(x = metab_monthly_relab,
 output_monthly_all_genus_interact = ccrepe(x = metab_monthly_relab, 
                                      y = genera_monthly[,6:56],
                                      min.subj = 5, errthresh = 1e-01)
+
+output_monthly_all_family_interact = ccrepe(x = metab_monthly_relab, 
+                                           y = family_monthly[,6:35],
+                                           min.subj = 5, errthresh = 1e-01)
+
+output_monthly_all_phyla_interact = ccrepe(x = metab_monthly_relab, 
+                                           y = phyla_monthly[,6:15],
+                                           min.subj = 5, errthresh = 1e-01)
 
 metab_monthly_relab_wmeta_rainy = metab_monthly_relab_meta %>% 
   filter(Season == "Rain")
@@ -508,6 +550,51 @@ write.csv(pvalues_monthly_all_interact, "interact_network_genera_pvalues.csv")
 write.csv(qvalues_monthly_all_interact, "interact_network_genera_qvalues.csv")
 write.csv(zvalues_monthly_all_interact, "interact_network_genera_zvalues.csv")
 write.csv(rhovalue_monthly_all_interact, "interact_network_genera_rhovalues.csv")
+
+pvalues_monthly_all_family_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_family_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_all_family_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_family_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_all_family_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_family_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_all_family_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_family_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_all_family_interact$rowname, 
+                              pvalues_monthly_all_family_interact$column, 
+                              pvalues_monthly_all_family_interact$pvalue, 
+                              qvalues_monthly_all_family_interact$qvalue, 
+                              zvalues_monthly_all_family_interact$zvalue, 
+                              rhovalue_monthly_all_family_interact$rhovalue))
+
+write.csv(output_table, "interact_family_network.csv")
+
+pvalues_monthly_all_phyla_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_phyla_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_all_phyla_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_phyla_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_all_phyla_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_phyla_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_all_phyla_interact = rownames_to_column(as.data.frame(
+  output_monthly_all_phyla_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_all_phyla_interact$rowname, 
+                              pvalues_monthly_all_phyla_interact$column, 
+                              pvalues_monthly_all_phyla_interact$pvalue, 
+                              qvalues_monthly_all_phyla_interact$qvalue, 
+                              zvalues_monthly_all_phyla_interact$zvalue, 
+                              rhovalue_monthly_all_phyla_interact$rhovalue))
+
+write.csv(output_table, "interact_phyla_network.csv")
+
 
 pvalues_monthly_rainy_interact = rownames_to_column(as.data.frame(
   output_monthly_rainy_interact[["p.values"]])) %>% 
@@ -652,6 +739,256 @@ output_table = bind_cols(list(pvalues_monthly_dry_genus_interact$rowname,
                               rhovalue_monthly_dry_genus_interact$rhovalue))
 
 write.csv(output_table, "interact_network_dry_genus.csv")
+
+##Monthly each ----
+
+metab_monthly = read.csv("metabolites_name_match_50plus_monthly_r_with16S.csv")
+genera_monthly = read.csv("genera_table_relab_11plus_monthly_wmetab.csv", header = T)
+
+metab_monthly_relab = decostand(metab_monthly[,4:169], method="total", MARGIN=1)
+metab_monthly_relab_meta = bind_cols(metab_monthly[,1:3], metab_monthly_relab)
+
+metab_monthly_relab_wmeta_jan = metab_monthly_relab_meta %>% 
+  filter(Month == "January")
+metab_monthly_wmeta_feb = metab_monthly_relab_meta %>% 
+  filter(Month == "February")
+metab_monthly_wmeta_mar = metab_monthly_relab_meta %>% 
+  filter(Month == "March")
+metab_monthly_relab_wmeta_apr = metab_monthly_relab_meta %>% 
+  filter(Month == "April")
+metab_monthly_wmeta_may = metab_monthly_relab_meta %>% 
+  filter(Month == "May")
+metab_monthly_wmeta_jun = metab_monthly_relab_meta %>% 
+  filter(Month == "June")
+metab_monthly_relab_wmeta_oct = metab_monthly_relab_meta %>% 
+  filter(Month == "October")
+metab_monthly_wmeta_nov = metab_monthly_relab_meta %>% 
+  filter(Month == "November")
+
+genera_monthly_jan = genera_monthly %>% 
+  filter(Month == "January")
+genera_monthly_feb = genera_monthly %>% 
+  filter(Month == "February")
+genera_monthly_mar = genera_monthly %>% 
+  filter(Month == "March")
+genera_monthly_apr = genera_monthly %>% 
+  filter(Month == "April")
+genera_monthly_may = genera_monthly %>% 
+  filter(Month == "May")
+genera_monthly_jun = genera_monthly %>% 
+  filter(Month == "June")
+genera_monthly_oct = genera_monthly %>% 
+  filter(Month == "October")
+genera_monthly_nov = genera_monthly %>% 
+  filter(Month == "November")
+
+output_monthly_jan_genus_interact = ccrepe(x = metab_monthly_relab_wmeta_jan[,4:169], 
+                                             y = genera_monthly_jan[,6:56],
+                                             min.subj = 3, errthresh = 1e-01)
+
+output_monthly_feb_genus_interact = ccrepe(x = metab_monthly_wmeta_feb[,4:169], 
+                                           y = genera_monthly_feb[,6:56],
+                                           min.subj = 5, errthresh = 1e-01)
+
+output_monthly_mar_genus_interact = ccrepe(x = metab_monthly_wmeta_mar[,4:169], 
+                                           y = genera_monthly_mar[,6:56],
+                                           min.subj = 5, errthresh = 1e-01)
+
+output_monthly_apr_genus_interact = ccrepe(x = metab_monthly_relab_wmeta_apr[,4:169], 
+                                           y = genera_monthly_apr[,6:56],
+                                           min.subj = 3, errthresh = 1e-01)
+
+output_monthly_may_genus_interact = ccrepe(x = metab_monthly_wmeta_may[,4:169], 
+                                           y = genera_monthly_may[,6:56],
+                                           min.subj = 5, errthresh = 1e-01)
+
+output_monthly_jun_genus_interact = ccrepe(x = metab_monthly_wmeta_jun[,4:169], 
+                                           y = genera_monthly_jun[,6:56],
+                                           min.subj = 5, errthresh = 1e-01)
+
+output_monthly_oct_genus_interact = ccrepe(x = metab_monthly_relab_wmeta_oct[,4:169], 
+                                           y = genera_monthly_oct[,6:56],
+                                           min.subj = 2, errthresh = 1e-01)
+
+output_monthly_nov_genus_interact = ccrepe(x = metab_monthly_wmeta_nov[,4:169], 
+                                           y = genera_monthly_nov[,6:56],
+                                           min.subj = 5, errthresh = 1e-01)
+
+pvalues_monthly_jan_interact = rownames_to_column(as.data.frame(
+  output_monthly_jan_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_jan_interact = rownames_to_column(as.data.frame(
+  output_monthly_jan_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_jan_interact = rownames_to_column(as.data.frame(
+  output_monthly_jan_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_jan_interact = rownames_to_column(as.data.frame(
+  output_monthly_jan_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_jan_interact$rowname, 
+                              pvalues_monthly_jan_interact$column, 
+                              pvalues_monthly_jan_interact$pvalue, 
+                              qvalues_monthly_jan_interact$qvalue, 
+                              zvalues_monthly_jan_interact$zvalue, 
+                              rhovalue_monthly_jan_interact$rhovalue))
+
+write.csv(output_table, "interact_network_jan.csv")
+
+pvalues_monthly_feb_interact = rownames_to_column(as.data.frame(
+  output_monthly_feb_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_feb_interact = rownames_to_column(as.data.frame(
+  output_monthly_feb_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_feb_interact = rownames_to_column(as.data.frame(
+  output_monthly_feb_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_feb_interact = rownames_to_column(as.data.frame(
+  output_monthly_feb_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_feb_interact$rowname, 
+                              pvalues_monthly_feb_interact$column, 
+                              pvalues_monthly_feb_interact$pvalue, 
+                              qvalues_monthly_feb_interact$qvalue, 
+                              zvalues_monthly_feb_interact$zvalue, 
+                              rhovalue_monthly_feb_interact$rhovalue))
+
+write.csv(output_table, "interact_network_feb.csv")
+
+pvalues_monthly_mar_interact = rownames_to_column(as.data.frame(
+  output_monthly_mar_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_mar_interact = rownames_to_column(as.data.frame(
+  output_monthly_mar_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_mar_interact = rownames_to_column(as.data.frame(
+  output_monthly_mar_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_mar_interact = rownames_to_column(as.data.frame(
+  output_monthly_mar_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_mar_interact$rowname, 
+                              pvalues_monthly_mar_interact$column, 
+                              pvalues_monthly_mar_interact$pvalue, 
+                              qvalues_monthly_mar_interact$qvalue, 
+                              zvalues_monthly_mar_interact$zvalue, 
+                              rhovalue_monthly_mar_interact$rhovalue))
+
+write.csv(output_table, "interact_network_mar.csv")
+
+pvalues_monthly_apr_interact = rownames_to_column(as.data.frame(
+  output_monthly_apr_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_apr_interact = rownames_to_column(as.data.frame(
+  output_monthly_apr_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_apr_interact = rownames_to_column(as.data.frame(
+  output_monthly_apr_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_apr_interact = rownames_to_column(as.data.frame(
+  output_monthly_apr_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_apr_interact$rowname, 
+                              pvalues_monthly_apr_interact$column, 
+                              pvalues_monthly_apr_interact$pvalue, 
+                              qvalues_monthly_apr_interact$qvalue, 
+                              zvalues_monthly_apr_interact$zvalue, 
+                              rhovalue_monthly_apr_interact$rhovalue))
+
+write.csv(output_table, "interact_network_apr.csv")
+
+pvalues_monthly_may_interact = rownames_to_column(as.data.frame(
+  output_monthly_may_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_may_interact = rownames_to_column(as.data.frame(
+  output_monthly_may_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_may_interact = rownames_to_column(as.data.frame(
+  output_monthly_may_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_may_interact = rownames_to_column(as.data.frame(
+  output_monthly_may_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_may_interact$rowname, 
+                              pvalues_monthly_may_interact$column, 
+                              pvalues_monthly_may_interact$pvalue, 
+                              qvalues_monthly_may_interact$qvalue, 
+                              zvalues_monthly_may_interact$zvalue, 
+                              rhovalue_monthly_may_interact$rhovalue))
+
+write.csv(output_table, "interact_network_may.csv")
+
+pvalues_monthly_jun_interact = rownames_to_column(as.data.frame(
+  output_monthly_jun_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_jun_interact = rownames_to_column(as.data.frame(
+  output_monthly_jun_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_jun_interact = rownames_to_column(as.data.frame(
+  output_monthly_jun_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_jun_interact = rownames_to_column(as.data.frame(
+  output_monthly_jun_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_jun_interact$rowname, 
+                              pvalues_monthly_jun_interact$column, 
+                              pvalues_monthly_jun_interact$pvalue, 
+                              qvalues_monthly_jun_interact$qvalue, 
+                              zvalues_monthly_jun_interact$zvalue, 
+                              rhovalue_monthly_jun_interact$rhovalue))
+
+write.csv(output_table, "interact_network_jun.csv")
+
+pvalues_monthly_oct_interact = rownames_to_column(as.data.frame(
+  output_monthly_oct_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_oct_interact = rownames_to_column(as.data.frame(
+  output_monthly_oct_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_oct_interact = rownames_to_column(as.data.frame(
+  output_monthly_oct_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_oct_interact = rownames_to_column(as.data.frame(
+  output_monthly_oct_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_oct_interact$rowname, 
+                              pvalues_monthly_oct_interact$column, 
+                              pvalues_monthly_oct_interact$pvalue, 
+                              qvalues_monthly_oct_interact$qvalue, 
+                              zvalues_monthly_oct_interact$zvalue, 
+                              rhovalue_monthly_oct_interact$rhovalue))
+
+write.csv(output_table, "interact_network_oct.csv")
+
+pvalues_monthly_nov_interact = rownames_to_column(as.data.frame(
+  output_monthly_nov_interact[["p.values"]])) %>% 
+  gather(key = column, value = pvalue, -rowname) %>% drop_na(pvalue)
+qvalues_monthly_nov_interact = rownames_to_column(as.data.frame(
+  output_monthly_nov_interact[["q.values"]])) %>% 
+  gather(key = column, value = qvalue, -rowname) %>% drop_na(qvalue)
+zvalues_monthly_nov_interact = rownames_to_column(as.data.frame(
+  output_monthly_nov_interact[["z.stat"]])) %>% 
+  gather(key = column, value = zvalue, -rowname) %>% drop_na(zvalue)
+rhovalue_monthly_nov_interact = rownames_to_column(as.data.frame(
+  output_monthly_nov_interact[["sim.score"]])) %>% 
+  gather(key = column, value = rhovalue, -rowname) %>% drop_na(rhovalue)
+
+output_table = bind_cols(list(pvalues_monthly_nov_interact$rowname, 
+                              pvalues_monthly_nov_interact$column, 
+                              pvalues_monthly_nov_interact$pvalue, 
+                              qvalues_monthly_nov_interact$qvalue, 
+                              zvalues_monthly_nov_interact$zvalue, 
+                              rhovalue_monthly_nov_interact$rhovalue))
+
+write.csv(output_table, "interact_network_nov.csv")
 
 #Plant fecal metab network comparisons ----
 
